@@ -1,12 +1,5 @@
-/*************************************************************************
-> File Name: MyDB.h
-> Author: SongLee
-> E-mail: lisong.shine@qq.com
-> Created Time: 2014年05月04日 星期日 23时25分50秒
-> Personal Blog: http://songlee24.github.io
-************************************************************************/
 #pragma once
-//#include <Winsock2.h>
+//#include <Winsock2.h>  // windows下操作mysql数据库时，必须引入此头文件，解决 "fd 未声明符号"的错误；Linux下无须引用
 #include<iostream>
 #include<string>
 #include<mysql.h>

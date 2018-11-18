@@ -1,10 +1,3 @@
-/*************************************************************************
-    > File Name: MyDB.cpp
-    > Author: SongLee
-    > E-mail: lisong.shine@qq.com
-    > Created Time: 2014年05月04日 星期日 23时37分08秒
-    > Personal Blog: http://songlee24.github.io
- ************************************************************************/
 #include<iostream>
 #include<cstdlib>
 #include "sql.h"
