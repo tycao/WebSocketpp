@@ -1,0 +1,112 @@
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport"
+			  content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+		<meta http-equiv="X-UA-Compatible" content="ie=edge">
+		<title>JS页面展示</title>
+		<link rel="stylesheet" href="./layui/css/layui.css">
+	</head>
+	<script>
+		window.onload = function () {
+			//function clear() {
+			//	document.getElementById("msg_list").innerHTML = "";
+			//};
+		};
+	</script>
+<body>
+	<table id="demo" lay-filter="testtable"></table>
+	<form class="layui-form" action="">
+		<input type="hidden" value="QHis" name="type" />
+		<input type="hidden" value="" name="content" />
+		<input type="hidden" value="" name="cid" />
+		<input type="hidden" value="" name="login_time" />
+		<input type="hidden" value="" name="logout_time" />
+	  <div class="layui-form-item">
+		<div class="layui-input-block">
+		  <button class="layui-btn" lay-submit lay-filter="formDemo">查询</button>
+		  <!--<button type="reset" class="layui-btn layui-btn-primary">重置</button>-->
+		</div>
+	  </div>
+	  
+	</form>
+  <!--<div id="msg_list" style="width: 598px;border:  1px solid gray; height: 500px;overflow: scroll;float: left;"></div>-->
+</body>
+	<script src="./layui/layui.all.js"></script>	 
+	<script>
+		// 建立WebSocket通讯, 使用原始WS
+		var ws = new WebSocket("ws://47.88.57.20:9001");
+		ws.onopen = function (e) {
+			//layer.msg("ws.onopen被回调！");
+			layer.msg("Welcome to Chatting Room! Let's chat now!");
+		};
+		ws.onmessage = function (e) {
+			//layer.msg(e.data);	// string类型
+			//alert(e.data);		// string类型
+			var o = JSON.parse(e.data);
+			//alert(typeof o);	// object类型
+			
+			
+			if (o instanceof Array) {
+				// 若返回的是json数组，则是查询操作
+				o.forEach((x, index)=>{
+					if(x.cid==""){o.splice(index,1);} 
+					if(x.cid==null){x.cid="null";}
+				});
+			} else {
+				// 否则是登录 or 新消息
+				if(o.type == "MSG"){
+					layer.msg("群里有新消息啦！");
+				} else if(o.type=="logout"){
+					layer.msg("有朋友退出群聊啦！请重新点击查询~");
+				} else if(o.type=="LOGIN"){
+					layer.msg("有新朋友加入群聊啦！请重新点击查询~");
+				}
+				return false;
+			}
+			
+			layui.use(["table","laydate","layer"],function() {
+				table=layui.table,laydate=layui.laydate,$=layui.jquery;
+				  var layer=layui.layer;
+				  //展示已知数据
+				  table.render({
+					elem: '#demo'
+					,data: o
+					,height: 272
+					,cols: [[ //标题栏
+					  {checkbox: true, LAY_CHECKED: true} //默认全选
+					  ,{field: 'cid', title: '用户名', width: 200, align:'center'}
+					  ,{field: 'type', title: 'type', width: 120, align:'center'}
+					  ,{field: 'content', title: 'content', width: 200, align:'center'}
+					  ,{field: 'logout_time', title: 'logout_time', width: 120 ,align:'center'}
+					  ,{field: 'login_time', title: '登录时间', width: 200, align:'center', sort: true}
+					]] 
+					,skin: 'row' //表格风格
+					,even: true
+					,page: true //是否显示分页
+					,limits: [5, 7, 10]
+					,limit: 5 //每页默认显示的数量   				
+				 });
+
+			});
+		}
+		ws.onerror = function(e) {
+			layer.msg("参数错误!");
+		};
+		//Demo
+		layui.use('form', function(){
+		  var form = layui.form;
+		  //监听提交
+		  form.on('submit(formDemo)', function(data){
+			//alert(JSON.stringify(data.field.logout_time));
+			//layer.msg(JSON.stringify(data.field));
+			//alert(typeof data.field.desc);
+			ws.send(JSON.stringify(data.field));
+			return false;
+		  });
+		});
+		
+		
+	</script>
+	
+</html>

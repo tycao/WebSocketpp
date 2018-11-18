@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <meta http-equiv="content-type" content="text/html;charset=utf-8">
+    <style>
+        p {
+            text-align: left;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+<div style="width: 800px;height: 600px;margin: 30px auto;text-align: center">
+    <h1>websocket聊天室</h1>
+    <div style="width: 900px;border: 1px solid gray;height: 350px;">
+        <div style="width: 250px;height: 350px;float: left;text-align: left;">
+            <p><span>当前在线:</span><span id="user_num">0</span></p>
+            <p><span>当前用户:</span><span id="my_name"></span></p>
+            <div id="user_list" style="overflow: auto;">
+
+            </div>
+        </div>
+        <div id="msg_list" style="width: 648px;border:  1px solid gray; height: 350px;overflow: scroll;float: left;">
+        </div>
+    </div>
+    <br>
+    <textarea id="msg_box" rows="6" cols="50" onkeydown="confirm(event)"></textarea><br>
+    <input type="button" value="发送" onclick="send()">
+    <input type="button" value="查询当前在线用户信息" onclick="query();">
+    <input type="button" value="查询历史在线用户信息" onclick="query_his();">
+</div>
+</body>
+</html>
+
+<script type="text/javascript">
+    // 存储用户名到全局变量,握手成功后发送给服务器
+    var uname = prompt('请输入用户名', 'user' + uuid(8, 16));
+	uname = uname.trim();
+	var login_time = new Date();
+	login_time = login_time.toLocaleString();
+    var ws = new WebSocket("ws://47.88.57.20:9001");
+    ws.onopen = function () {
+        var data = "系统消息：建立连接成功";
+        listMsg(data);
+		var user_info = {'type': 'LOGIN', 'content': uname, 'cid': uname, 'login_time':login_time, 'logout_time':''};
+		sendMsg(user_info);
+		setMyName();
+    };
+
+    /**
+     * 分析服务器返回信息
+     *
+     * msg.type : user 普通信息;system 系统信息;handshake 握手信息;login 登陆信息; logout 退出信息;
+     * msg.from : 消息来源
+     * msg.content: 消息内容
+     */
+    ws.onmessage = function (e) {
+        var msg = JSON.parse(e.data);
+		//alert(msg.type);
+		//alert(msg.content);
+		if (msg.oper=="Query" || msg.oper=="QHis") {
+			return false;
+		}
+		
+        var sender, user_name, name_list, change_type;
+
+        switch (msg.type) {
+            case 'system':
+                sender = '系统消息: ';
+                break;
+            case 'MSG':
+                sender = msg.cid + ': ';
+                break;
+            case 'handshake':
+                var user_info = {'type': 'login', 'content': uname};
+                sendMsg(user_info);
+                return;
+            case 'LOGIN':
+				sender = '系统消息: "' + msg.cid + '" 已经上线！';
+				listMsg(sender);
+				return;
+			case 'SAME':
+				sender = '系统消息："' + msg.cid + '"已经存在！请重新登录！'
+				listMsg(sender);
+				return;
+            case 'logout':
+				sender = '系统消息: "' + msg.cid + '" 已经下线！';
+				listMsg(sender);
+				return;
+                user_name = msg.content;
+                name_list = msg.user_list;
+                change_type = msg.type;
+                dealUser(user_name, change_type, name_list);
+                return;
+			default:
+        }
+        var data = sender + msg.content;
+        listMsg(data);
+    };
+
+    ws.onerror = function () {
+        var data = "系统消息 : 出错了,请退出重试.";
+        listMsg(data);
+    };
+
+    /**
+     * 在输入框内按下回车键时发送消息
+     *
+     * @param event
+     *
+     * @returns {boolean}
+     */
+    function confirm(event) {
+        var key_num = event.keyCode;
+        if (13 == key_num) {
+            send();
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * 发送并清空消息输入框内的消息
+     */
+    function send() {
+        var msg_box = document.getElementById("msg_box");
+        var content = msg_box.value;
+        var reg = new RegExp("\r\n", "g");
+        content = content.replace(reg, "");
+		if (content.trim() == "") {
+			alert("发送内容不能为空！");
+			return false;
+		}
+        var msg = {'type': 'MSG', 'content': content.trim(), 'cid': uname, 'login_time':login_time, 'logout_time':''};
+        sendMsg(msg);
+        msg_box.value = '';
+        // todo 清除换行符
+    }
+	
+
+	/**
+	 * 查询当前在线用户信息
+	 */
+	function query() {
+		window.open("./query.html");
+	}
+	
+	/**
+	 * 查询历史在线用户信息
+	 */
+	function query_his() {
+		window.open("./query_his.html");
+	}
+	 
+	 /**
+	  * 登陆后显示我的名字
+	  */
+	function setMyName() {
+		document.getElementById("my_name").innerText = uname;
+	}
+	
+    /**
+     * 将消息内容添加到输出框中,并将滚动条滚动到最下方
+     */
+    function listMsg(data) {
+        var msg_list = document.getElementById("msg_list");
+        var msg = document.createElement("p");
+
+        msg.innerHTML = data;
+        msg_list.appendChild(msg);
+        msg_list.scrollTop = msg_list.scrollHeight;
+    }
+
+    /**
+     * 处理用户登陆消息
+     *
+     * @param user_name 用户名
+     * @param type  login/logout
+     * @param name_list 用户列表
+     */
+    function dealUser(user_name, type, name_list) {
+        var user_list = document.getElementById("user_list");
+        var user_num = document.getElementById("user_num");
+        while(user_list.hasChildNodes()) {
+            user_list.removeChild(user_list.firstChild);
+        }
+
+        for (var index in name_list) {
+            var user = document.createElement("p");
+            user.innerHTML = name_list[index];
+            user_list.appendChild(user);
+        }
+        user_num.innerHTML = name_list.length;
+        user_list.scrollTop = user_list.scrollHeight;
+
+        var change = type == 'login' ? '上线' : '下线';
+
+        var data = '系统消息: ' + user_name + ' 已' + change;
+        listMsg(data);
+    }
+
+    /**
+     * 将数据转为json并发送
+     * @param msg
+     */
+    function sendMsg(msg) {
+        var data = JSON.stringify(msg);
+        ws.send(data);
+    }
+
+    /**
+     * 生产一个全局唯一ID作为用户名的默认值;
+     *
+     * @param len
+     * @param radix
+     * @returns {string}
+     */
+    function uuid(len, radix) {
+        var chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split('');
+        var uuid = [], i;
+        radix = radix || chars.length;
+
+        if (len) {
+            for (i = 0; i < len; i++) uuid[i] = chars[0 | Math.random() * radix];
+        } else {
+            var r;
+
+            uuid[8] = uuid[13] = uuid[18] = uuid[23] = '-';
+            uuid[14] = '4';
+
+            for (i = 0; i < 36; i++) {
+                if (!uuid[i]) {
+                    r = 0 | Math.random() * 16;
+                    uuid[i] = chars[(i == 19) ? (r & 0x3) | 0x8 : r];
+                }
+            }
+        }
+
+        return uuid.join('');
+    }
+</script>
